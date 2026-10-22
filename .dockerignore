@@ -1,0 +1,30 @@
+**/.git
+**/.gitignore
+**/.gitattributes
+**/.vs
+**/.vscode
+**/.idea
+
+# Build artifacts
+**/bin
+**/obj
+**/out
+**/build
+**/TestResults
+
+# Project user settings
+**/*.user
+**/*.userosscache
+**/*.suo
+**/*.DotSettings.user
+
+# Documentation & docker files
+**/*.md
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Logs & temp files
+**/*.log
+**/*.tmp
+

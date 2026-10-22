@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="SmartRetail.Api/SmartRetail.Api.csproj" />
+  <Project Path="SmartRetail.Application/SmartRetail.Application.csproj" />
+  <Project Path="SmartRetail.Domain/SmartRetail.Domain.csproj" />
+  <Project Path="SmartRetail.Infrastructure/SmartRetail.Infrastructure.csproj" />
+</Solution>
