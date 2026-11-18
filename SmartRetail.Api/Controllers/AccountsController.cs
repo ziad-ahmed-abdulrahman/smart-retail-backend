@@ -101,22 +101,19 @@ namespace SmartRetail.Api.Controllers
             // Assign Owner role by default
             await _userManager.AddToRoleAsync(user, "Owner");
 
-            // Automatically create initial store for the merchant
-            var initialStoreName = !string.IsNullOrWhiteSpace(regsiterDto.StoreName)
-                ? regsiterDto.StoreName.Trim()
-                : (!string.IsNullOrWhiteSpace(firstName) ? $"متجر {firstName}" : "المتجر الرئيسي");
-
-            var initialStore = new Store
+            // Create initial store only if explicitly provided by the merchant
+            if (!string.IsNullOrWhiteSpace(regsiterDto.StoreName))
             {
-                Name = initialStoreName,
-                OwnerId = user.Id,
-                Address = "الفرع الرئيسي",
-                City = "القاهرة",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.Stores.Add(initialStore);
-            await _context.SaveChangesAsync();
+                var initialStore = new Store
+                {
+                    Name = regsiterDto.StoreName.Trim(),
+                    OwnerId = user.Id,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Stores.Add(initialStore);
+                await _context.SaveChangesAsync();
+            }
 
             // Generate and send OTP activation code immediately upon registration
             var oneTimeCode = GenerateCode.Generate();
@@ -142,7 +139,7 @@ namespace SmartRetail.Api.Controllers
                  .Replace("{{activationcode}}", oneTimeCode)
                  .Replace("{{activationcodeexpiryminutes}}", codeExpiryMinutes.ToString());
 
-            var subject = "كود تفعيل حسابك في Smart Retail";
+            var subject = "Activate Your Account - Smart Retail";
             await _emailSender.SendEmailAsync(regsiterDto.Email, subject, body);
 
             return Ok(new APIResponse<object>(200, "Account Created Successfully. Activation code sent to your email."));
@@ -458,6 +455,34 @@ namespace SmartRetail.Api.Controllers
 
         }
 
+        #endregion
+
+        #region Direct Authenticated Change Password
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto changePasswordDto)
+        {
+            var email = User.FindFirstValue(ClaimTypes.Email);
+            if (string.IsNullOrEmpty(email))
+                return Unauthorized(new APIResponse<object>(401, "Your session has expired. Please log in again."));
+
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+                return NotFound(new APIResponse<object>(404, "User not found."));
+
+            var result = await _userManager.ChangePasswordAsync(user, changePasswordDto.CurrentPassword, changePasswordDto.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest(new APIResponse<object>(400, $"Password change failed: {errors}"));
+            }
+
+            user.SecurityStamp = Guid.NewGuid().ToString();
+            user.RefreshTokens?.Clear();
+            await _userManager.UpdateAsync(user);
+
+            return Ok(new APIResponse<object>(200, "Password changed successfully!"));
+        }
         #endregion
 
         #region Login
