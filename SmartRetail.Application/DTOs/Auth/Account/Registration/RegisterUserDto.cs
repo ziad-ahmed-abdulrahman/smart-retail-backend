@@ -10,7 +10,6 @@ namespace SmartRetail.Application.DTOs.Auth.Account.Registration
 {
     public class RegisterUserDto
     {
-
         [Required]
         [EmailAddress]
         public string Email { get; set; } = null!;
@@ -18,5 +17,9 @@ namespace SmartRetail.Application.DTOs.Auth.Account.Registration
         [Required]
         [PasswordPropertyText]
         public string Password { get; set; } = null!;
+
+        public string? FullName { get; set; }
+
+        public string? StoreName { get; set; }
     }
 }

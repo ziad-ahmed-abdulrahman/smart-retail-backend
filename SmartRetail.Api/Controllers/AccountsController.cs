@@ -1,5 +1,6 @@
 using SmartRetail.Api.Helpers;
 using SmartRetail.Domain.Entities;
+using SmartRetail.Infrastructure.Persistence.Contexts;
 using SmartRetail.Application.DTOs.Auth.Account.Activation;
 using SmartRetail.Application.DTOs.Auth.Account.ChangePassword;
 using SmartRetail.Application.DTOs.Auth.Account.Login;
@@ -39,18 +40,22 @@ namespace SmartRetail.Api.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IEmailSender _emailSender;
         private readonly ITokenService _tokenService;
+        private readonly AppDbContext _context;
+
         public AccountsController(IConfiguration configuration,
             IEmailSender emailSender,
             ITokenService tokenService,
             SignInManager<User> signInManager,
             UserManager<User> userManager,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            AppDbContext context)
         {
             _configuration = configuration;
             _emailSender = emailSender;
             _tokenService = tokenService;
             _userManager = userManager;
             _env = env;
+            _context = context;
         }
         #endregion
 
@@ -66,10 +71,16 @@ namespace SmartRetail.Api.Controllers
             if (userFromDb != null)
                 return BadRequest(new APIResponse<object>(400, "User already exists."));
 
+            var parts = (regsiterDto.FullName ?? "").Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string? firstName = parts.Length > 0 ? parts[0] : null;
+            string? lastName = parts.Length > 1 ? string.Join(" ", parts.Skip(1)) : null;
+
             var user = new User
             {
                 UserName = regsiterDto.Email.Split('@')[0],
                 Email = regsiterDto.Email,
+                FirstName = firstName,
+                LastName = lastName,
                 IsActive = false,
                 InactivityStartDate = DateTime.UtcNow,
             };
@@ -90,6 +101,23 @@ namespace SmartRetail.Api.Controllers
             // Assign Owner role by default
             await _userManager.AddToRoleAsync(user, "Owner");
 
+            // Automatically create initial store for the merchant
+            var initialStoreName = !string.IsNullOrWhiteSpace(regsiterDto.StoreName)
+                ? regsiterDto.StoreName.Trim()
+                : (!string.IsNullOrWhiteSpace(firstName) ? $"متجر {firstName}" : "المتجر الرئيسي");
+
+            var initialStore = new Store
+            {
+                Name = initialStoreName,
+                OwnerId = user.Id,
+                Address = "الفرع الرئيسي",
+                City = "القاهرة",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Stores.Add(initialStore);
+            await _context.SaveChangesAsync();
+
             // Generate and send OTP activation code immediately upon registration
             var oneTimeCode = GenerateCode.Generate();
             double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"] ?? "5");
@@ -105,8 +133,11 @@ namespace SmartRetail.Api.Controllers
                 templatePath = Path.Combine(_env.ContentRootPath, "Templates/Registration", "AccountCreatedSuccessfully.html");
             }
             var body = await System.IO.File.ReadAllTextAsync(templatePath);
+            var displayName = !string.IsNullOrWhiteSpace(user.FirstName)
+                ? $"{user.FirstName} {user.LastName}".Trim()
+                : user.UserName;
             body = body
-                 .Replace("{{username}}", user.UserName)
+                 .Replace("{{username}}", displayName)
                  .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString())
                  .Replace("{{activationcode}}", oneTimeCode)
                  .Replace("{{activationcodeexpiryminutes}}", codeExpiryMinutes.ToString());
@@ -134,7 +165,7 @@ namespace SmartRetail.Api.Controllers
 
             var oneTimeCode = GenerateCode.Generate();
 
-            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"]);
+            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"] ?? "5");
 
             userFromDb.OneTimeCode = oneTimeCode;
             userFromDb.OneTimeCodeExpiry = DateTime.UtcNow.AddMinutes(codeExpiryMinutes);
@@ -144,13 +175,14 @@ namespace SmartRetail.Api.Controllers
 
             var templatePath = Path.Combine(_env.ContentRootPath, "Templates/Activation", "SendActivationCode.html");
             var body = await System.IO.File.ReadAllTextAsync(templatePath);
+            var displayName = !string.IsNullOrWhiteSpace(userFromDb.FirstName) ? $"{userFromDb.FirstName} {userFromDb.LastName}".Trim() : userFromDb.UserName;
             body = body
-                 .Replace("{{username}}", userFromDb.UserName)
-                 .Replace("{{currentyear}}", "2026")
+                 .Replace("{{username}}", displayName)
+                 .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString())
                  .Replace("{{activationcode}}", oneTimeCode)
-                 .Replace("{{activationcodeexpiryminutes}}", codeExpiryMinutes!.ToString());
+                 .Replace("{{activationcodeexpiryminutes}}", codeExpiryMinutes.ToString());
 
-            var subject = "Activate Your Account";
+            var subject = "Activate Your Account - Smart Retail";
 
 
             await _emailSender.SendEmailAsync(sendActivationCodeDto.Email, subject, body);
@@ -186,6 +218,7 @@ namespace SmartRetail.Api.Controllers
             }
 
             userFromDb.IsActive = true;
+            userFromDb.EmailConfirmed = true;
             userFromDb.InactivityStartDate = null;
             userFromDb.OneTimeCodeExpiry = null;
             userFromDb.OneTimeCode = null;
@@ -193,14 +226,18 @@ namespace SmartRetail.Api.Controllers
             await _userManager.UpdateAsync(userFromDb);
 
             var templatePath = Path.Combine(_env.ContentRootPath, "Templates/Activation", "AccountActivatedSuccessfully.html");
-            var body = await System.IO.File.ReadAllTextAsync(templatePath);
-            body = body
-                 .Replace("{{username}}", userFromDb.UserName)
-                 .Replace("{{currentyear}}", "2026");
+            if (System.IO.File.Exists(templatePath))
+            {
+                var body = await System.IO.File.ReadAllTextAsync(templatePath);
+                var displayName = !string.IsNullOrWhiteSpace(userFromDb.FirstName) ? $"{userFromDb.FirstName} {userFromDb.LastName}".Trim() : userFromDb.UserName;
+                body = body
+                     .Replace("{{username}}", displayName)
+                     .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString());
 
-            var subject = "Account Activated Successfully";
+                var subject = "Account Activated Successfully - Smart Retail";
 
-            await _emailSender.SendEmailAsync(verifyActivationCodeDto.Email, subject, body);
+                await _emailSender.SendEmailAsync(verifyActivationCodeDto.Email, subject, body);
+            }
 
             return Ok(new APIResponse<object>(200, ("Account activated successfully.")));
 
@@ -224,7 +261,7 @@ namespace SmartRetail.Api.Controllers
 
             var oneTimeCode = GenerateCode.Generate();
 
-            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"]);
+            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"] ?? "5");
 
             userFromDb.OneTimeCode = oneTimeCode;
             userFromDb.OneTimeCodeExpiry = DateTime.UtcNow.AddMinutes(codeExpiryMinutes);
@@ -233,15 +270,19 @@ namespace SmartRetail.Api.Controllers
             await _userManager.UpdateAsync(userFromDb);
 
             var templatePath = Path.Combine(_env.ContentRootPath, "Templates/ResetPassword", "SendResetCode.html");
-            var body = await System.IO.File.ReadAllTextAsync(templatePath);
-            body = body
-                 .Replace("{{username}}", userFromDb.UserName)
-                 .Replace("{{currentyear}}", "2026")
-                 .Replace("{{resetcode}}", oneTimeCode)
-                 .Replace("{{resetcodeexpiryminutes}}", codeExpiryMinutes!.ToString());
+            if (System.IO.File.Exists(templatePath))
+            {
+                var body = await System.IO.File.ReadAllTextAsync(templatePath);
+                var displayName = !string.IsNullOrWhiteSpace(userFromDb.FirstName) ? $"{userFromDb.FirstName} {userFromDb.LastName}".Trim() : userFromDb.UserName;
+                body = body
+                     .Replace("{{username}}", displayName)
+                     .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString())
+                     .Replace("{{resetcode}}", oneTimeCode)
+                     .Replace("{{resetcodeexpiryminutes}}", codeExpiryMinutes.ToString());
 
-            var subject = "Reset Your Password";
-            await _emailSender.SendEmailAsync(sendResetCodeDto.Email, subject, body);
+                var subject = "Reset Your Password - Smart Retail";
+                await _emailSender.SendEmailAsync(sendResetCodeDto.Email, subject, body);
+            }
 
             return Ok(new APIResponse<object>(200, "Password reset code sent successfully."));
         }
@@ -297,14 +338,18 @@ namespace SmartRetail.Api.Controllers
             await _userManager.UpdateAsync(userFromDb);
 
             var templatePath = Path.Combine(_env.ContentRootPath, "Templates/ResetPassword", "PasswordResetedSuccessfully.html");
-            var body = await System.IO.File.ReadAllTextAsync(templatePath);
-            body = body
-                 .Replace("{{username}}", userFromDb.UserName)
-                 .Replace("{{currentyear}}", "2026");
+            if (System.IO.File.Exists(templatePath))
+            {
+                var body = await System.IO.File.ReadAllTextAsync(templatePath);
+                var displayName = !string.IsNullOrWhiteSpace(userFromDb.FirstName) ? $"{userFromDb.FirstName} {userFromDb.LastName}".Trim() : userFromDb.UserName;
+                body = body
+                     .Replace("{{username}}", displayName)
+                     .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString());
 
-            var subject = "?? Password Reset Successfully";
+                var subject = "Password Reset Successfully - Smart Retail";
 
-            await _emailSender.SendEmailAsync(verifyResetCodeDto.Email, subject, body);
+                await _emailSender.SendEmailAsync(verifyResetCodeDto.Email, subject, body);
+            }
 
             return Ok(new APIResponse<object>(200, "Your password has been reset successfully!"));
 
@@ -327,7 +372,7 @@ namespace SmartRetail.Api.Controllers
 
             var oneTimeCode = GenerateCode.Generate();
 
-            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"]);
+            double codeExpiryMinutes = Convert.ToDouble(_configuration["OTPSetting:codeExpiryMinutes"] ?? "5");
 
             userFromDb.OneTimeCode = oneTimeCode;
             userFromDb.OneTimeCodeExpiry = DateTime.UtcNow.AddMinutes(codeExpiryMinutes);
@@ -336,15 +381,19 @@ namespace SmartRetail.Api.Controllers
             await _userManager.UpdateAsync(userFromDb);
 
             var templatePath = Path.Combine(_env.ContentRootPath, "Templates/ChangePassword", "SendChangePasswordCode.html");
-            var body = await System.IO.File.ReadAllTextAsync(templatePath);
-            body = body
-                 .Replace("{{username}}", userFromDb.UserName)
-                 .Replace("{{currentyear}}", "2026")
-                 .Replace("{{change_password_code}}", oneTimeCode)
-                 .Replace("{{change_password_code_expiryMinutes}}", codeExpiryMinutes!.ToString());
+            if (System.IO.File.Exists(templatePath))
+            {
+                var body = await System.IO.File.ReadAllTextAsync(templatePath);
+                var displayName = !string.IsNullOrWhiteSpace(userFromDb.FirstName) ? $"{userFromDb.FirstName} {userFromDb.LastName}".Trim() : userFromDb.UserName;
+                body = body
+                     .Replace("{{username}}", displayName)
+                     .Replace("{{currentyear}}", DateTime.UtcNow.Year.ToString())
+                     .Replace("{{change_password_code}}", oneTimeCode)
+                     .Replace("{{change_password_code_expiryMinutes}}", codeExpiryMinutes.ToString());
 
-            var subject = "Change Your Password";
-            await _emailSender.SendEmailAsync(sendChangePasswordCodeDto.Email, subject, body);
+                var subject = "Change Your Password - Smart Retail";
+                await _emailSender.SendEmailAsync(sendChangePasswordCodeDto.Email, subject, body);
+            }
 
             return Ok(new APIResponse<object>(200, "Password Change code sent successfully."));
         }
