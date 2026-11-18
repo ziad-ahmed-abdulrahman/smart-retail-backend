@@ -1,0 +1,1045 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-smartretail01",
+    "name": "SmartRetail API Documentation",
+    "description": "# Smart Retail API - Automated Supermarket System\n\nThis API provides secure authentication, authorization, and store management for the **Smart Retail** platform.\n\n### Roles Overview\n- **SuperAdmin**: The system platform owner who manages the software, monitors users, and controls platform access.\n- **Owner**: Supermarket/store owner who registers to the system, owns stores, and manages smart devices.\n\n### Authentication Flow\n1. Register via `POST /api/accounts/register` (Account is assigned role **Owner** with inactive status).\n2. Request activation OTP via `POST /api/accounts/account-activations`.\n3. Verify OTP via `POST /api/accounts/account-activations/verify`.\n4. Login via `POST /api/accounts/login` to obtain JWT Bearer Token and Refresh Token.\n5. Use the Bearer Token in `Authorization: Bearer <token>` for protected endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication & Registration",
+      "description": "Endpoints available for guests to register, activate accounts, and login.",
+      "item": [
+        {
+          "name": "Register Owner Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"new_owner@smartretail.com\",\n  \"password\": \"P@ssword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "register"
+              ]
+            },
+            "description": "Registers a new store owner account. Automatically assigns the `Owner` role. Sends an activation email with OTP code."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Account Activation Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-activations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-activations"
+              ]
+            },
+            "description": "Generates and sends a new one-time activation code (OTP) to the user's email if the previous one expired."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Account Activation Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\",\n  \"code\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-activations/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-activations",
+                "verify"
+              ]
+            },
+            "description": "Verifies the activation code and activates the account, enabling login access."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (Owner)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (pm.response.code === 200 && res.data) {",
+                  "    if (res.data.token) { pm.environment.set('token', res.data.token); }",
+                  "    if (res.data.refreshToken) { pm.environment.set('refresh_token', res.data.refreshToken); }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\",\n  \"password\": \"{{owner_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "login"
+              ]
+            },
+            "description": "Authenticates the Owner credentials and returns a JWT Bearer token and Refresh Token."
+          },
+          "response": []
+        },
+        {
+          "name": "Login (SuperAdmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (pm.response.code === 200 && res.data) {",
+                  "    if (res.data.token) { pm.environment.set('token', res.data.token); }",
+                  "    if (res.data.refreshToken) { pm.environment.set('refresh_token', res.data.refreshToken); }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superadmin_email}}\",\n  \"password\": \"{{superadmin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "login"
+              ]
+            },
+            "description": "Authenticates the SuperAdmin credentials."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var res = pm.response.json();",
+                  "if (pm.response.code === 200 && res.data) {",
+                  "    if (res.data.token) { pm.environment.set('token', res.data.token); }",
+                  "    if (res.data.refreshToken) { pm.environment.set('refresh_token', res.data.refreshToken); }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{token}}\",\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/refresh-token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "refresh-token"
+              ]
+            },
+            "description": "Exchanges an expired JWT and a valid Refresh Token for a brand new JWT token pair."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Password Management",
+      "description": "Endpoints to request password reset code, verify code, and change password.",
+      "item": [
+        {
+          "name": "Forgot Password - Send Reset Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-resets",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-resets"
+              ]
+            },
+            "description": "Sends a 6-digit password reset code to the user's registered email address."
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password - Verify Reset Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\",\n  \"code\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-resets/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-resets",
+                "verify"
+              ]
+            },
+            "description": "Verifies the reset code and updates the account password."
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password - Send Code (Authorized)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-passwordchanges",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-passwordchanges"
+              ]
+            },
+            "description": "Sends a verification code for an authenticated user requesting a password change."
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password - Verify Code (Authorized)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{owner_email}}\",\n  \"code\": \"123456\",\n  \"oldPassword\": \"{{owner_password}}\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/account-passwordchanges/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "account-passwordchanges",
+                "verify"
+              ]
+            },
+            "description": "Verifies code, old password, and applies the new password."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. User Profile & Account (Authorized)",
+      "description": "Endpoints to manage the authenticated user profile, address, and account deletion.",
+      "item": [
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "me"
+              ]
+            },
+            "description": "Returns current logged in user details including id, email, username, first name, last name, phone, and address."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile & Address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ziad\",\n  \"lastName\":  \"Aboanter\",\n  \"phoneNumber\": \"+201000000000\",\n  \"street\": \"Street 9\",\n  \"city\": \"Cairo\",\n  \"state\": \"Maadi\",\n  \"zipCode\": \"11728\",\n  \"country\": \"Egypt\",\n  \"government\": \"Cairo\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "me"
+              ]
+            },
+            "description": "Updates profile details and address fields for the authenticated user."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete My Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "me"
+              ]
+            },
+            "description": "Deletes the currently authenticated user's account."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. SuperAdmin - User Management",
+      "description": "Privileged endpoints only accessible by SuperAdmin.",
+      "item": [
+        {
+          "name": "Get All Users (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts?pageIndex=1&pageSize=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "pageIndex",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Returns a paginated list of all users in the system. Requires `SuperAdmin` role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/{{target_user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{target_user_id}}"
+              ]
+            },
+            "description": "Returns full details of a specific user. Requires `SuperAdmin` role."
+          },
+          "response": []
+        },
+        {
+          "name": "Create User By SuperAdmin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"created_owner@smartretail.com\",\n  \"password\": \"P@ssword123!\",\n  \"firstName\": \"Store\",\n  \"lastName\": \"Owner\",\n  \"phoneNumber\": \"+201111111111\",\n  \"role\": \"Owner\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts"
+              ]
+            },
+            "description": "Creates a new user and assigns a role directly. Requires `SuperAdmin` role."
+          },
+          "response": []
+        },
+        {
+          "name": "Update User By Id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"UpdatedName\",\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/accounts/{{target_user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{target_user_id}}"
+              ]
+            },
+            "description": "Updates any user's data or active state. Requires `SuperAdmin` role."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User By Id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/accounts/{{target_user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "accounts",
+                "{{target_user_id}}"
+              ]
+            },
+            "description": "Deletes a specific user account. Requires `SuperAdmin` role."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Categories Management",
+      "description": "Endpoints for managing store categories, layout coordinates, visibility, and hierarchical structure.",
+      "item": [
+        {
+          "name": "Get Store Categories (with Map Layout)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/store/{{store_id}}?onlyVisible=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "store",
+                "{{store_id}}"
+              ],
+              "query": [
+                {
+                  "key": "onlyVisible",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Returns hierarchical categories with coordinates (GridX, GridY, Width, Height, ColorHex) for the store map."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Category By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"اللحوم\",\n  \"description\": \"قسم اللحوم والدواجن الطازجة\",\n  \"storeId\": 1,\n  \"parentCategoryId\": null,\n  \"gridX\": 1,\n  \"gridY\": 0,\n  \"width\": 1,\n  \"height\": 1,\n  \"colorHex\": \"#7B241C\",\n  \"isVisible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"اللحوم والأسماك\",\n  \"description\": \"تحديث الوصف\",\n  \"parentCategoryId\": null,\n  \"gridX\": 1,\n  \"gridY\": 0,\n  \"width\": 1,\n  \"height\": 1,\n  \"colorHex\": \"#7B241C\",\n  \"isVisible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Category Position (Map Coordinates)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"gridX\": 2,\n  \"gridY\": 1,\n  \"width\": 1,\n  \"height\": 1,\n  \"colorHex\": \"#1E8449\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/position",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}",
+                "position"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Category Visibility",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isVisible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}/visibility",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}",
+                "visibility"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Category (Choose delete or transfer to متنوعة)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}?deleteProducts=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ],
+              "query": [
+                {
+                  "key": "deleteProducts",
+                  "value": "false",
+                  "description": "false moves products to متنوعة, true deletes all products"
+                }
+              ]
+            },
+            "description": "Cannot delete default category (متنوعة). Set deleteProducts=false to move products to متنوعة."
+          },
+          "response": []
+        },
+        {
+          "name": "Ensure Default Category Exists (متنوعة)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/categories/store/{{store_id}}/ensure-default",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "store",
+                "{{store_id}}",
+                "ensure-default"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Products Management",
+      "description": "Endpoints for managing supermarket inventory products, barcodes, prices, visibility, and categories.",
+      "item": [
+        {
+          "name": "Get Store Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/store/{{store_id}}?onlyVisible=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "store",
+                "{{store_id}}"
+              ],
+              "query": [
+                {
+                  "key": "onlyVisible",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product By Barcode",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/products/store/{{store_id}}/barcode/{{barcode}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "store",
+                "{{store_id}}",
+                "barcode",
+                "{{barcode}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"حليب المراعي كامل الدسم 1 لتر\",\n  \"description\": \"حليب طازج معقم\",\n  \"barcode\": \"6281007010014\",\n  \"price\": 38.5,\n  \"stock\": 120,\n  \"isVisible\": true,\n  \"storeId\": 1,\n  \"categoryId\": null\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Creates a product. If categoryId is null or omitted, automatically assigns to store default (متنوعة)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"حليب المراعي كامل الدسم 1 لتر - معدل\",\n  \"description\": \"وصف محدث\",\n  \"barcode\": \"6281007010014\",\n  \"price\": 40.0,\n  \"stock\": 150,\n  \"isVisible\": true,\n  \"categoryId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Toggle Product Visibility",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isVisible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}/visibility",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}",
+                "visibility"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_id}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

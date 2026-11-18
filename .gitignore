@@ -35,6 +35,7 @@ project.lock.json
 project.assets.json
 
 ## Secrets, Local Settings & Environments
+appsettings.Development.json
 appsettings.Production.json
 appsettings.*.local.json
 *.local.json
@@ -67,4 +68,12 @@ desktop.ini
 
 ## Ensure .gitkeep is always tracked
 !.gitkeep
+
+## Sensitive publish credentials & notes
+*.publishSettings
+links.txt
+
+## Frontend and auxiliary projects (separated repos)
+owner-frontend/
+auth-system/
 
